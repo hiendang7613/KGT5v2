@@ -1,7 +1,7 @@
 import argparse
 import os
-import tqdm
-
+from tqdm.auto import tqdm
+import re
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -18,12 +18,19 @@ if __name__ == '__main__':
     files = [train_file, valid_file, test_file]
 
     for input_file in files:
-        for line in tqdm.tqdm(train_file):
-            sentence = line[line.find(start_separator)+len(start_separator):]
-            split_sentence = sentence.split(" | ")
-            unique_entities.add(split_sentence[0].strip())
-            split_sentence = split_sentence[1].split(" |\t")
-            unique_entities.add(split_sentence[1].strip())
+        line_count = len(input_file.readlines())
+        input_file.seek(0)
+        for line in tqdm(input_file, total=line_count):
+                sentence = line[line.find(start_separator)+len(start_separator):]
+                split_sentence = [ s.strip() for s in sentence.split(" | ")]
+                # print(split_sentence)
+                for s in split_sentence:
+                    if s.find("\t")!=-1:
+                        unique_entities.add(s.split("\t")[1])
+                    else:
+                        unique_entities.add(s)
+
+
 
     with open(output_file, "w") as out_file:
         for entity in unique_entities:

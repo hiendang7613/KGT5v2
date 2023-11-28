@@ -4,16 +4,19 @@ import pickle
 from collections import defaultdict
 from typing import Dict, Tuple, List
 import json
+import concurrent.futures
 
 import numpy as np
 import torch
 # from qa_models import QA_model
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import random
 from torch.utils.data import Dataset, DataLoader
 from transformers import T5TokenizerFast
 import os
 from typing import Dict, List
+
+
 
 class T5_Dataset(Dataset):
     def __init__(self, 
@@ -31,9 +34,16 @@ class T5_Dataset(Dataset):
         self.splits["valid"] = self.loadData(f"data/{dataset_name}/valid.txt", max_points)
         self.splits["test"] = self.loadData(f"data/{dataset_name}/test.txt", max_points)
         self.entity_strings = self.load_entity_strings(os.path.join("data", dataset_name, "entity_strings.txt"))
-        self.tokenized_entities = self.tokenizer(self.entity_strings, padding='max_length', truncation=True, max_length=32, return_tensors="pt")
-        self.entity_string_to_id = dict(zip(self.entity_strings, torch.arange(len(self.entity_strings)).tolist()))
 
+        def tokenize_text(text):
+            return self.tokenizer(text, padding='max_length', truncation=True, max_length=32, return_tensors="pt")
+
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            results = list(tqdm(executor.map(tokenize_text, self.entity_strings), total=len(self.entity_strings), desc="Tokenizing", unit="text"))
+
+        self.tokenized_entities = results
+
+        self.entity_string_to_id = dict(zip(self.entity_strings, torch.arange(len(self.entity_strings)).tolist()))
     def split(self, split: str) -> Dict[List[str], List[str]]:
         return self.splits[split]
 

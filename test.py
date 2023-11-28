@@ -1,0 +1,1 @@
+python main_accelerate.py --save_prefix wd5m-1gpu --model_size small --dataset wikidata5m --batch_size 64 --save_steps 5000 --loss_steps 500

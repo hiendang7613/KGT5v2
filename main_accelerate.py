@@ -11,6 +11,7 @@ from accelerate import Accelerator
 import argparse
 import os
 from utils_accelerate import *
+from tqdm.auto import tqdm
 
 
 parser = argparse.ArgumentParser()
@@ -88,7 +89,7 @@ def save_accelerator_model(model, optimizer, steps, loss, args):
     'loss': loss,
     'args': args} # also saving the command line args
     accelerator.save(checkpoint, file_name)
-    accelerator.print('Model/optimizer saved at {}'.format(file_name))
+    print('Model/optimizer saved at {}'.format(file_name))
     
 
 def train(model, optimizer, dataset, args=None):
@@ -118,26 +119,26 @@ def train(model, optimizer, dataset, args=None):
             accelerator.backward(loss)
             optimizer.step()
             if num_steps % save_steps == 0:
-                accelerator.print('Saving at step %d' % num_steps)
+                print('Saving at step %d' % num_steps)
                 save_accelerator_model(model, optimizer, num_steps, loss.item(), args)
             num_steps += 1
             if num_steps % loss_steps == 0:
                 # accelerator.print('Loss: ', running_loss/loss_steps)
-                accelerator.print('Loss: ', loss.item()/len(input_ids)) # divide by batch size
+                print('Loss: ', loss.item()/len(input_ids)) # divide by batch size
                 running_loss = 0
             running_loss += loss.item()
             
-        accelerator.print('epoch loss ', running_loss)
+        print('epoch loss ', running_loss)
 
 
 train_dataset = T5_Dataset('train', dataset_name=args.dataset)
-
+print('Train dataset size: ', len(train_dataset))
 args.start_steps = 0
 if 't5' not in args.model_size: # TODO: remove the need for this
     args.model_size = 't5-{}'.format(args.model_size)
 config = T5Config().from_pretrained(args.model_size)
 model = T5ForConditionalGeneration(config)
-
+print('Model : ', model.config)
 
 if args.optimizer == 'adafactor':
     if args.learning_rate == None:
@@ -149,7 +150,7 @@ if args.optimizer == 'adafactor':
 elif args.optimizer == 'adam':
     optimizer = transformers.AdamW(model.parameters(), lr=args.learning_rate)
 else:
-    accelerator.print('Unknown optimizer type %s' % args.optimizer)
+    print('Unknown optimizer type %s' % args.optimizer)
     exit(0)
 
 if args.resume != None:
@@ -157,13 +158,13 @@ if args.resume != None:
     if os.path.exists('model/{}'.format(args.resume)):
         exit(0) #TODO: write this
     else:
-        accelerator.print('Folder %s not found' % args.resume)
+        print('Folder %s not found' % args.resume)
         exit(0)
 elif args.load_checkpoint != None:
-    accelerator.print('Loading from {}'.format(args.load_checkpoint))
+    print('Loading from {}'.format(args.load_checkpoint))
     model, optimizer, _, _ = load_accelerator_model('models/{}'.format(args.load_checkpoint))
-    accelerator.print('Loaded')
+    print('Loaded')
 else:
-    accelerator.print('Starting fresh')
+    print('Starting fresh')
     
 train(model, optimizer, train_dataset, args)
