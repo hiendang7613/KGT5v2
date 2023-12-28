@@ -37,10 +37,10 @@ class T5_Dataset(Dataset):
 
         def tokenize_text(text):
             return self.tokenizer(text, padding='max_length', truncation=True, max_length=32, return_tensors="pt")
-
-        with concurrent.futures.ProcessPoolExecutor() as executor:
-            results = list(tqdm(executor.map(tokenize_text, self.entity_strings), total=len(self.entity_strings), desc="Tokenizing", unit="text"))
-
+        results=[]
+        for entity_string in self.entity_strings:
+            results.append(tokenize_text(entity_string))
+            
         self.tokenized_entities = results
 
         self.entity_string_to_id = dict(zip(self.entity_strings, torch.arange(len(self.entity_strings)).tolist()))
